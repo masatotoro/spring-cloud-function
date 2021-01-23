@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM for Spring Cloud Function
+Globals:
+  Function:
+    Tracing: Active
+    Runtime: provided.al2
+    CodeUri: ./target/function-sample-aws-custom-3.0.0.RELEASE-native-zip.zip
+    MemorySize: 512
+    Timeout: 30
+  Api:
+    EndpointConfiguration: REGIONAL
+    TracingEnabled: True
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: spirng-cloud-function-api-gateway
+      StageName: dev
+
+  UpperCaseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: uppercase
+      Policies: AWSLambdaBasicExecutionRole
+      Events:
+        UpperCaseProxyResource:
+          Type: Api
+          Properties:
+            Path: /uppercase
+            Method: post
+            RestApiId: !Ref ApiGateway
+      Environment:
+        Variables:
+          FUNCTION_NAME: uppercase
+
+Outputs:
+  SpringCloudAwsLambdaApi:
+    Description: URL for application
+    Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
+    Export:
+      Name: SpringCloudAwsLambdaApi
+

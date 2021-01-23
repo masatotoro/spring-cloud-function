@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd ${LAMBDA_TASK_ROOT:-.}
+
+./function-sample-aws-custom -Dlogging.level.org.springframework=INFO

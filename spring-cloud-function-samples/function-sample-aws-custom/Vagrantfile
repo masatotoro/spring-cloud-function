@@ -1,0 +1,53 @@
+# -*- mode: ruby coding: utf-8-unix -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.provider 'virtualbox' do |vb|
+    vb.memory = '8192'
+  end
+  config.vm.box = "bento/amazonlinux-2"
+  config.vm.box_version = "1.2.1"
+  if Vagrant.has_plugin?('vagrant-proxyconf')
+    config.proxy.enabled  = true
+    config.proxy.http     = ENV["HTTP_PROXY"]
+    config.proxy.https    = ENV["HTTPS_PROXY"]
+    config.proxy.no_proxy = ENV["NO_PROXY"]
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    yum -y update
+    yum install -y tar gzip bzip2-devel ed gcc gcc-c++ gcc-gfortran \
+    less libcurl-devel openssl openssl-devel readline-devel xz-devel \
+    zlib-devel glibc-static libcxx libcxx-devel llvm-toolset-7 zlib-static
+    rm -rf /var/cache/yum
+    JAVA_VERSION=8
+    GRAAL_VERSION=20.3.0
+    GRAAL_DIRNAME=graalvm-ce-java${JAVA_VERSION}-${GRAAL_VERSION}
+    if [ ! -e "/vagrant/graalvm" ]; then
+      mkdir -p /vagrant/graalvm
+      wget https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-${GRAAL_VERSION}/graalvm-ce-java${JAVA_VERSION}-linux-amd64-${GRAAL_VERSION}.tar.gz \
+      -P /vagrant/graalvm
+    fi
+    cd /vagrant/graalvm
+    ls -la
+    tar xz -f graalvm-ce-java${JAVA_VERSION}-linux-amd64-${GRAAL_VERSION}.tar.gz
+    mv $GRAAL_DIRNAME /usr/lib/graalvm
+    export PATH=/usr/lib/graalvm/bin:$PATH
+    export JAVA_HOME=/usr/lib/graalvm
+    echo 'export PATH=/usr/lib/graalvm/bin:$PATH' >> /home/vagrant/.bashrc
+    echo 'export JAVA_HOME=/usr/lib/graalvm' >> /home/vagrant/.bashrc
+    gu install native-image
+    java -version
+    native-image --version
+
+    wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
+    sed -i s/\$releasever/6/g /etc/yum.repos.d/epel-apache-maven.repo
+    yum install -y apache-maven
+    mvn --version
+
+    yum install -y docker
+    systemctl start docker
+    usermod -a -G docker vagrant
+    systemctl enable docker
+  SHELL
+end
